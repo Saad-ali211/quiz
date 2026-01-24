@@ -1,0 +1,72 @@
+[
+  {
+    "question": "When did Qatar gain independence from Britain?",
+    "options": ["1971", "1965", "1980", "1950"],
+    "correctIndex": 0,
+    "category": "Qatar History",
+    "difficulty": "Easy"
+  },
+  {
+    "question": "Who was the first Emir of independent Qatar?",
+    "options": ["Sheikh Tamim bin Hamad", "Sheikh Khalifa bin Hamad", "Sheikh Hamad bin Khalifa", "Sheikh Abdullah bin Jassim"],
+    "correctIndex": 1,
+    "category": "Qatar History",
+    "difficulty": "Medium"
+  },
+  {
+    "question": "Which city is considered the historical capital of Qatar?",
+    "options": ["Doha", "Al Wakrah", "Al Khor", "Al Zubarah"],
+    "correctIndex": 3,
+    "category": "Qatar History",
+    "difficulty": "Medium"
+  },
+  {
+    "question": "What was Qatar's main economic activity before oil discovery?",
+    "options": ["Fishing and pearling", "Agriculture", "Textiles", "Tourism"],
+    "correctIndex": 0,
+    "category": "Qatar History",
+    "difficulty": "Easy"
+  },
+  {
+    "question": "When was oil first discovered in Qatar?",
+    "options": ["1939", "1940", "1949", "1956"],
+    "correctIndex": 2,
+    "category": "Qatar History",
+    "difficulty": "Medium"
+  },
+  {
+    "question": "Which fort is one of the oldest in Qatar, dating back to the 18th century?",
+    "options": ["Al Zubarah Fort", "Al Koot Fort", "Al Wajbah Fort", "Doha Fort"],
+    "correctIndex": 2,
+    "category": "Qatar History",
+    "difficulty": "Hard"
+  },
+  {
+    "question": "Qatar became a member of the United Nations in which year?",
+    "options": ["1971", "1972", "1973", "1970"],
+    "correctIndex": 1,
+    "category": "Qatar History",
+    "difficulty": "Medium"
+  },
+  {
+    "question": "Who led Qatar’s modernization after independence?",
+    "options": ["Sheikh Khalifa bin Hamad", "Sheikh Tamim bin Hamad", "Sheikh Hamad bin Khalifa", "Sheikh Abdullah bin Jassim"],
+    "correctIndex": 2,
+    "category": "Qatar History",
+    "difficulty": "Medium"
+  },
+  {
+    "question": "What was the historical significance of Al Zubarah?",
+    "options": ["Major pearling port", "Oil refinery", "Military base", "Agricultural hub"],
+    "correctIndex": 0,
+    "category": "Qatar History",
+    "difficulty": "Hard"
+  },
+  {
+    "question": "Which treaty recognized Qatar as a British protectorate?",
+    "options": ["1868 Treaty of Al Wakrah", "1916 Treaty of Protection", "1935 Doha Agreement", "1949 Oil Treaty"],
+    "correctIndex": 1,
+    "category": "Qatar History",
+    "difficulty": "Hard"
+  }
+]
