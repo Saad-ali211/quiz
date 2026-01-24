@@ -29,9 +29,13 @@ public class QuestionUIManager : MonoBehaviour
     [Header("--- Progress Fill ---")]
     public Image progressBar;
 
+    [Header("--- Stats view screen  ---")]
+    public GameObject StatsView;
+
     // ------ Events ------
     public static event Action<int> OnCorrectAnswer;
     public static event Action<int> OnWrongAnswer;
+    public static event Action OnQuizComplete;
 
     // ------ current question ------
     public int currentQuestionIndex = -1;
@@ -46,6 +50,8 @@ public class QuestionUIManager : MonoBehaviour
 
     private void Start()
     {
+        //subscribe to timer finish event
+        Timer.OnTimerFinished += HandleOnTimerFinish;
         // Store all buttons in array for easy access
         optionButtons = new Button[] { option1, option2, option3, option4 };
 
@@ -57,6 +63,11 @@ public class QuestionUIManager : MonoBehaviour
         }
 
         ShowNextQuestion();
+    }
+
+    private void HandleOnTimerFinish()
+    {
+        OnOptionSelected(4);
     }
 
     // when user clicks on option
@@ -94,6 +105,8 @@ public class QuestionUIManager : MonoBehaviour
 
         if (QuestionManager.Instance.Questions[currentQuestionIndex].correctIndex != selectedOptionIndex)
         {
+            //play shake animation
+            transform.Find("QuestionContainer").GetComponent<ShakeAnimation>().PlayShakeAnimation();
             // wrong answer
             switch (selectedOptionIndex)
             {
@@ -112,6 +125,10 @@ public class QuestionUIManager : MonoBehaviour
                 case 3:
                     option4.transform.Find("Uncorrect").gameObject.SetActive(true);
                     option4.GetComponent<Image>().color = new Color(1f, 0.847f, 0.847f);
+                    break;
+                case 4:
+                    //option4.transform.Find("Uncorrect").gameObject.SetActive(true);
+                    //option4.GetComponent<Image>().color = new Color(1f, 0.847f, 0.847f);
                     break;
                 default:
                     break;
@@ -172,8 +189,8 @@ public class QuestionUIManager : MonoBehaviour
         // Check if quiz is complete BEFORE trying to access questions
         if (currentQuestionIndex >= QuestionManager.Instance.Questions.Length)
         {
-            Debug.Log("Quiz Complete!");
-
+            StatsView.SetActive(true);
+            OnQuizComplete?.Invoke();
             return;
         }
 
