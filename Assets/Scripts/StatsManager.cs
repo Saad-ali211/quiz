@@ -18,6 +18,9 @@ public class StatsManager : MonoBehaviour
     public int wrongAnswers;
     public int scores;
 
+    private const int CORRECT_POINTS = 5;
+    private const int WRONG_POINTS = 2;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -25,7 +28,6 @@ public class StatsManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
         DontDestroyOnLoad(gameObject);
     }
@@ -41,13 +43,20 @@ public class StatsManager : MonoBehaviour
     {
         correctAnswers++;
         correctQuestions.text = correctAnswers.ToString("D2");
-        scores = correctAnswers * 100;
+        scores += CORRECT_POINTS;  // Add 5 points
+                                   // Debug.Log($"Correct Answer! Total Score: {scores}");
     }
 
     private void HandleWrongAnswer(int questionIndex)
     {
         wrongAnswers++;
         unCorrectQuestions.text = wrongAnswers.ToString("D2");
+        scores -= WRONG_POINTS;  // Subtract 2 points
+
+        // Prevent score from going below 0
+        scores = Mathf.Max(0, scores);
+
+        //Debug.Log($"Wrong Answer! Total Score: {scores}");
     }
 
     private void OnDestroy()
