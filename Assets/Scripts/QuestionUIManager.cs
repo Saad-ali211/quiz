@@ -32,6 +32,8 @@ public class QuestionUIManager : MonoBehaviour
     public int correctQuestionsCount = 0;
     public int unCorrectQuestionsCount = 0;
 
+    public bool allowClick = true;
+
     private Button[] optionButtons;
 
     private void Start()
@@ -52,6 +54,9 @@ public class QuestionUIManager : MonoBehaviour
     // when user clicks on option
     private void OnOptionSelected(int selectedOptionIndex)
     {
+        if (!allowClick)
+            return;
+
         Timer.Instance.StopTimer();
 
         // show the correct green image for correct answer
@@ -111,7 +116,7 @@ public class QuestionUIManager : MonoBehaviour
             // correct answer
             OnCorrectAnswer?.Invoke(currentQuestionIndex);
         }
-
+        allowClick = false;
         StartCoroutine(ShowNextQuestionAfterDelay(2.0f));
     }
 
@@ -140,6 +145,7 @@ public class QuestionUIManager : MonoBehaviour
     private IEnumerator ShowNextQuestionAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
+        allowClick = true;
         ShowNextQuestion();
 
     }
