@@ -20,6 +20,14 @@ public class QuestionUIManager : MonoBehaviour
     [Header("--- Question Heading ---")]
     public TextMeshProUGUI questionHeading;
 
+    [Header("--- Scores HUD ---")]
+    public TextMeshProUGUI ScoresText;
+
+    [Header("--- PROGRESS HUD ---")]
+    public TextMeshProUGUI progress;
+
+    [Header("--- Progress Fill ---")]
+    public Image progressBar;
 
     // ------ Events ------
     public static event Action<int> OnCorrectAnswer;
@@ -58,6 +66,7 @@ public class QuestionUIManager : MonoBehaviour
             return;
 
         Timer.Instance.StopTimer();
+
 
         // show the correct green image for correct answer
         switch (QuestionManager.Instance.Questions[currentQuestionIndex].correctIndex)
@@ -117,6 +126,10 @@ public class QuestionUIManager : MonoBehaviour
             OnCorrectAnswer?.Invoke(currentQuestionIndex);
         }
         allowClick = false;
+
+        //update the HUD SCORES
+        ScoresText.text = StatsManager.Instance.scores.ToString();
+
         StartCoroutine(ShowNextQuestionAfterDelay(2.0f));
     }
 
@@ -147,15 +160,15 @@ public class QuestionUIManager : MonoBehaviour
         yield return new WaitForSeconds(delay);
         allowClick = true;
         ShowNextQuestion();
-
     }
-
 
     private void ShowNextQuestion()
     {
         // Increment AFTER displaying the question
         currentQuestionIndex++;
 
+        // progress fill amount
+        progressBar.GetComponent<Image>().fillAmount = (float)currentQuestionIndex / 10f;
         // Check if quiz is complete BEFORE trying to access questions
         if (currentQuestionIndex >= QuestionManager.Instance.Questions.Length)
         {
@@ -163,7 +176,6 @@ public class QuestionUIManager : MonoBehaviour
 
             return;
         }
-
 
         // hide feedback images
         HideAllCorrectUncorrectImages();
@@ -181,8 +193,9 @@ public class QuestionUIManager : MonoBehaviour
 
         // update the question number heading
         questionHeading.GetComponent<TextMeshProUGUI>().text = "Question " + (currentQuestionIndex + 1);
+        // update the progress on HUD
+        progress.text = (currentQuestionIndex + 1).ToString("D2") + " / " + (QuestionManager.Instance.Questions.Length);
 
 
-        print("currentQuestionIndex : " + currentQuestionIndex);
     }
 }

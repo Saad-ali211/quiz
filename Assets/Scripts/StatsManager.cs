@@ -16,6 +16,7 @@ public class StatsManager : MonoBehaviour
 
     public int correctAnswers;
     public int wrongAnswers;
+    public int scores;
 
     private void Awake()
     {
@@ -40,6 +41,7 @@ public class StatsManager : MonoBehaviour
     {
         correctAnswers++;
         correctQuestions.text = correctAnswers.ToString("D2");
+        scores = correctAnswers * 100;
     }
 
     private void HandleWrongAnswer(int questionIndex)
