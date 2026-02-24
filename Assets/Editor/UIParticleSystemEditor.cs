@@ -252,47 +252,111 @@ public class UIParticleSystemEditor : Editor
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PRESETS
+    // PRESETS — grouped by category
     // ─────────────────────────────────────────────────────────────────────────
     private void DrawPresets(UIParticleSystem ps)
     {
-        EditorGUILayout.HelpBox("Presets overwrite current settings and restart the preview.", MessageType.None);
+        EditorGUILayout.HelpBox("Presets overwrite all current settings and restart the preview.", MessageType.None);
+        EditorGUILayout.Space(4);
+
+        PresetCategory("🍬  Candy / Match-3", ps, new (string, System.Action<UIParticleSystem>)[] {
+            ("🍭 Candy Pop",     UIParticleSystemPresets.ApplyCandyPop),
+            ("🌈 Rainbow",       UIParticleSystemPresets.ApplyCandyRainbow),
+            ("🟥 Jelly Splat",   UIParticleSystemPresets.ApplyJellySplat),
+            ("💥 Candy Clear",   UIParticleSystemPresets.ApplyCandyClear),
+            ("⭐ Sugar Star",    UIParticleSystemPresets.ApplySugarStar),
+        });
+
+        PresetCategory("🎉  Celebrations", ps, new (string, System.Action<UIParticleSystem>)[] {
+            ("🎊 Confetti",      UIParticleSystemPresets.ApplyConfetti),
+            ("🎆 Fireworks",     UIParticleSystemPresets.ApplyFireworks),
+            ("🪙 Coin Shower",   UIParticleSystemPresets.ApplyCoinShower),
+            ("⬆ Level Up",      UIParticleSystemPresets.ApplyLevelUp),
+            ("🎉 Ticker Tape",   UIParticleSystemPresets.ApplyTickerTape),
+        });
+
+        PresetCategory("✨  Magic / Spells", ps, new (string, System.Action<UIParticleSystem>)[] {
+            ("🔮 Magic Circle",  UIParticleSystemPresets.ApplyMagicCircle),
+            ("⚡ Wizard Spell",  UIParticleSystemPresets.ApplyWizardSpell),
+            ("🧚 Fairy Dust",    UIParticleSystemPresets.ApplyFairyDust),
+            ("🌀 Vortex",        UIParticleSystemPresets.ApplyVortex),
+            ("✝ Holy Light",    UIParticleSystemPresets.ApplyHolyLight),
+            ("🌑 Dark Matter",   UIParticleSystemPresets.ApplyDarkMatter),
+        });
+
+        PresetCategory("🌿  Nature", ps, new (string, System.Action<UIParticleSystem>)[] {
+            ("🔥 Fire",          UIParticleSystemPresets.ApplyFire),
+            ("💨 Smoke",         UIParticleSystemPresets.ApplySmoke),
+            ("🌧 Rain",          UIParticleSystemPresets.ApplyRain),
+            ("❄ Snow",          UIParticleSystemPresets.ApplySnow),
+            ("🍂 Leaves",        UIParticleSystemPresets.ApplyLeaves),
+            ("🫧 Bubbles",       UIParticleSystemPresets.ApplyBubbles),
+        });
+
+        PresetCategory("🖱  UI Feedback", ps, new (string, System.Action<UIParticleSystem>)[] {
+            ("⭐ Stars",         UIParticleSystemPresets.ApplyStars),
+            ("👆 Tap Pop",       UIParticleSystemPresets.ApplyTapPop),
+            ("❤ Heart Burst",   UIParticleSystemPresets.ApplyHeartBurst),
+            ("🛡 Shield Hit",    UIParticleSystemPresets.ApplyShieldHit),
+        });
+    }
+
+    private bool[] _catFolds = new bool[5]; // one per category
+
+    private void PresetCategory(string title, UIParticleSystem ps,
+        (string label, System.Action<UIParticleSystem> apply)[] presets)
+    {
+        // Determine index from title hashcode so each category has stable fold state
+        int idx = System.Math.Abs(title.GetHashCode()) % _catFolds.Length;
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+        var headerRect = GUILayoutUtility.GetRect(0, 20, GUILayout.ExpandWidth(true));
+        EditorGUI.DrawRect(headerRect, new Color(0.25f, 0.25f, 0.32f));
+        if (GUI.Button(headerRect, GUIContent.none, GUIStyle.none))
+            _catFolds[idx] = !_catFolds[idx];
+
+        var oldColor = GUI.contentColor;
+        GUI.contentColor = _accentColor;
+        GUI.Label(new Rect(headerRect.x + 6, headerRect.y + 3, 14, 14),
+            _catFolds[idx] ? "▼" : "▶", EditorStyles.miniLabel);
+        GUI.contentColor = Color.white;
+        GUI.Label(new Rect(headerRect.x + 20, headerRect.y + 3, headerRect.width, 16),
+            title, EditorStyles.miniLabel);
+        GUI.contentColor = oldColor;
+
+        if (_catFolds[idx])
+        {
+            EditorGUILayout.Space(2);
+            int cols = 3;
+            for (int i = 0; i < presets.Length; i += cols)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    for (int j = i; j < Mathf.Min(i + cols, presets.Length); j++)
+                    {
+                        var preset = presets[j];
+                        if (GUILayout.Button(preset.label, GUILayout.Height(24)))
+                        {
+                            preset.apply(ps);
+                            ps.Clear();
+                            ps.EditorPlay();
+                            EditorUtility.SetDirty(ps);
+                            serializedObject.Update();
+                            Repaint();
+                        }
+                    }
+                    // Fill empty slots in last row
+                    int remainder = presets.Length - i;
+                    for (int k = remainder; k < cols && k < cols; k++)
+                        GUILayout.FlexibleSpace();
+                }
+            }
+            EditorGUILayout.Space(2);
+        }
+
+        EditorGUILayout.EndVertical();
         EditorGUILayout.Space(2);
-
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            PresetButton("🔥 Fire",     () => { UIParticleSystemPresets.ApplyFire(ps);     Restart(ps); });
-            PresetButton("✨ Stars",    () => { UIParticleSystemPresets.ApplyStars(ps);    Restart(ps); });
-            PresetButton("💨 Smoke",   () => { UIParticleSystemPresets.ApplySmoke(ps);    Restart(ps); });
-        }
-        using (new EditorGUILayout.HorizontalScope())
-        {
-            PresetButton("🔮 Magic",   () => { UIParticleSystemPresets.ApplyMagic(ps);    Restart(ps); });
-            PresetButton("🌧 Rain",    () => { UIParticleSystemPresets.ApplyRain(ps);     Restart(ps); });
-            PresetButton("🎊 Confetti",() => {
-                UIParticleSystemPresets.ApplyConfetti(ps);
-                ps.EditorPlay();
-                ps.EmitBurst();
-                EditorUtility.SetDirty(ps);
-            });
-        }
-    }
-
-    private void PresetButton(string label, System.Action action)
-    {
-        if (GUILayout.Button(label, GUILayout.Height(26)))
-        {
-            action();
-            serializedObject.Update(); // refresh Inspector to show new values
-            Repaint();
-        }
-    }
-
-    private void Restart(UIParticleSystem ps)
-    {
-        ps.Clear();
-        ps.EditorPlay();
-        EditorUtility.SetDirty(ps);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

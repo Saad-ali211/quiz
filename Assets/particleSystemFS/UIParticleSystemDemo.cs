@@ -148,10 +148,35 @@ public class UIParticleSystemDemo : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────
     // CONTINUOUS PRESETS
     // ─────────────────────────────────────────────────────────────────────────
-    public void PlayFire()  { UIParticleSystemPresets.ApplyFire(particleSystem);  particleSystem.Play(); }
-    public void PlayStars() { UIParticleSystemPresets.ApplyStars(particleSystem); particleSystem.Play(); }
-    public void PlayMagic() { UIParticleSystemPresets.ApplyMagic(particleSystem); particleSystem.Play(); }
-    public void PlayRain()  { UIParticleSystemPresets.ApplyRain(particleSystem);  particleSystem.Play(); }
+    public void PlayFire()        { UIParticleSystemPresets.ApplyFire(particleSystem);        particleSystem.Play(); }
+    public void PlayStars()       { UIParticleSystemPresets.ApplyStars(particleSystem);       particleSystem.Play(); }
+    public void PlaySmoke()       { UIParticleSystemPresets.ApplySmoke(particleSystem);       particleSystem.Play(); }
+    public void PlayRain()        { UIParticleSystemPresets.ApplyRain(particleSystem);        particleSystem.Play(); }
+    public void PlaySnow()        { UIParticleSystemPresets.ApplySnow(particleSystem);        particleSystem.Play(); }
+    public void PlayBubbles()     { UIParticleSystemPresets.ApplyBubbles(particleSystem);     particleSystem.Play(); }
+    public void PlayLeaves()      { UIParticleSystemPresets.ApplyLeaves(particleSystem);      particleSystem.Play(); }
+    public void PlayMagicCircle() { UIParticleSystemPresets.ApplyMagicCircle(particleSystem); particleSystem.Play(); }
+    public void PlayFairyDust()   { UIParticleSystemPresets.ApplyFairyDust(particleSystem);   particleSystem.Play(); }
+    public void PlayVortex()      { UIParticleSystemPresets.ApplyVortex(particleSystem);      particleSystem.Play(); }
+    public void PlayCandyRainbow(){ UIParticleSystemPresets.ApplyCandyRainbow(particleSystem);particleSystem.Play(); }
+    public void PlaySugarStar()   { UIParticleSystemPresets.ApplySugarStar(particleSystem);   particleSystem.Play(); }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BURST PRESETS  — call EmitBurst() after applying
+    // ─────────────────────────────────────────────────────────────────────────
+    public void BurstCandyPop()   { UIParticleSystemPresets.ApplyCandyPop(particleSystem);   particleSystem.EmitBurst(); }
+    public void BurstJellySplat() { UIParticleSystemPresets.ApplyJellySplat(particleSystem);  particleSystem.EmitBurst(); }
+    public void BurstCandyClear() { UIParticleSystemPresets.ApplyCandyClear(particleSystem);  particleSystem.EmitBurst(); }
+    public void BurstFireworks()  { UIParticleSystemPresets.ApplyFireworks(particleSystem);   particleSystem.EmitBurst(); }
+    public void BurstCoinShower() { UIParticleSystemPresets.ApplyCoinShower(particleSystem);  particleSystem.EmitBurst(); }
+    public void BurstLevelUp()    { UIParticleSystemPresets.ApplyLevelUp(particleSystem);     particleSystem.EmitBurst(); }
+    public void BurstWizardSpell(){ UIParticleSystemPresets.ApplyWizardSpell(particleSystem); particleSystem.EmitBurst(); }
+    public void BurstHolyLight()  { UIParticleSystemPresets.ApplyHolyLight(particleSystem);   particleSystem.EmitBurst(); }
+    public void BurstDarkMatter() { UIParticleSystemPresets.ApplyDarkMatter(particleSystem);  particleSystem.EmitBurst(); }
+    public void BurstHeartBurst() { UIParticleSystemPresets.ApplyHeartBurst(particleSystem);  particleSystem.EmitBurst(); }
+    public void BurstShieldHit()  { UIParticleSystemPresets.ApplyShieldHit(particleSystem);   particleSystem.EmitBurst(); }
+    public void BurstTapPop()     { UIParticleSystemPresets.ApplyTapPop(particleSystem);      particleSystem.EmitBurst(); }
+    public void BurstTickerTape() { UIParticleSystemPresets.ApplyTickerTape(particleSystem);  particleSystem.Play(); }
 
     public void StopParticles()  => particleSystem.Stop();
     public void ClearParticles() => particleSystem.Clear();

@@ -128,6 +128,10 @@ public class UIParticleSystem : MonoBehaviour
     private double _lastEditorTime = 0;
     private Sprite _defaultSprite;
 
+    // Track what's currently applied so OnValidate can detect changes
+    private Sprite   _appliedSprite;
+    private Material _appliedMaterial;
+
     // ═════════════════════════════════════════════════════════════════════════
     // LIFECYCLE
     // ═════════════════════════════════════════════════════════════════════════
@@ -140,6 +144,42 @@ public class UIParticleSystem : MonoBehaviour
         if (!Application.isPlaying) return;
 #endif
         if (playOnAwake) Play();
+    }
+
+    /// <summary>
+    /// Called by Unity whenever ANY Inspector value changes (edit mode or play mode).
+    /// Hot-swaps sprite and material on every active AND pooled particle immediately
+    /// so changes reflect without restarting the simulation.
+    /// </summary>
+    private void OnValidate()
+    {
+        if (_active == null) return;
+
+        Sprite   targetSprite   = particleSprite   != null ? particleSprite   : GetDefaultCircleSprite();
+        Material targetMaterial = particleMaterial;
+
+        bool spriteChanged   = targetSprite   != _appliedSprite;
+        bool materialChanged = targetMaterial != _appliedMaterial;
+
+        if (!spriteChanged && !materialChanged) return;
+
+        // Hot-swap on all currently flying particles
+        foreach (var p in _active)
+            ApplyRendererToParticle(p, targetSprite, targetMaterial);
+
+        // Hot-swap on pooled particles so next spawn is correct too
+        foreach (var p in _pool)
+            ApplyRendererToParticle(p, targetSprite, targetMaterial);
+
+        _appliedSprite   = targetSprite;
+        _appliedMaterial = targetMaterial;
+    }
+
+    private void ApplyRendererToParticle(UIParticle p, Sprite sprite, Material mat)
+    {
+        if (p?.image == null) return;
+        p.image.sprite   = sprite;
+        p.image.material = mat; // null = Unity resets to default UI material, which is correct
     }
 
     private void OnEnable()
@@ -470,8 +510,17 @@ public class UIParticleSystem : MonoBehaviour
     // ═════════════════════════════════════════════════════════════════════════
     private UIParticle GetFromPool()
     {
-        if (_pool.Count > 0) { var p = _pool.Dequeue(); p.gameObject.SetActive(true); return p; }
-        return CreateParticle();
+        UIParticle p = _pool.Count > 0 ? _pool.Dequeue() : CreateParticle();
+
+        // Always apply the current sprite/material at the moment of spawn.
+        // This covers the case where the user changed the sprite while the
+        // particle was sitting in the pool.
+        Sprite   targetSprite   = particleSprite   != null ? particleSprite   : GetDefaultCircleSprite();
+        Material targetMaterial = particleMaterial;
+        ApplyRendererToParticle(p, targetSprite, targetMaterial);
+
+        p.gameObject.SetActive(true);
+        return p;
     }
 
     private void ReturnToPool(UIParticle p)
@@ -490,14 +539,12 @@ public class UIParticleSystem : MonoBehaviour
         rt.sizeDelta = new Vector2(startSize, startSize);
 
         var img    = go.GetComponent<Image>();
-        img.sprite = particleSprite != null ? particleSprite : GetDefaultCircleSprite();
-        if (particleMaterial != null) img.material = particleMaterial;
+        // Don't assign sprite here — GetFromPool always sets it, so we stay DRY
         img.color  = Color.white;
 
         var p = new UIParticle { gameObject = go, rectTransform = rt, image = img };
         go.SetActive(false);
 
-        // Hide from hierarchy clutter in Edit Mode
 #if UNITY_EDITOR
         go.hideFlags = HideFlags.DontSave | HideFlags.HideInHierarchy;
 #endif
