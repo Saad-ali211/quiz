@@ -1,13 +1,17 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Custom UI Particle System that works natively inside a Canvas (Screen Space Overlay).
-/// Attach this to an empty GameObject inside your Canvas hierarchy.
-/// Particles are pooled UI Images — no Camera or sorting layer tricks needed.
+/// Custom UI Particle System — works natively inside Canvas (Screen Space Overlay).
+/// [ExecuteAlways] allows live preview directly in the Editor without entering Play Mode.
+///
+/// EDITOR PREVIEW:
+///   Select the GameObject in the Hierarchy — the custom Inspector shows
+///   Play / Pause / Stop / Burst buttons that drive the simulation in Edit Mode.
+///   All property changes reflect instantly on the live preview.
 /// </summary>
+[ExecuteAlways]
 public class UIParticleSystem : MonoBehaviour
 {
     // ─────────────────────────────────────────────
@@ -16,27 +20,53 @@ public class UIParticleSystem : MonoBehaviour
     [Header("Main Module")]
     public bool playOnAwake = true;
     public bool loop = true;
-    [Range(0.1f, 20f)] public float duration = 5f;
-    [Range(0.1f, 10f)] public float startLifetime = 2f;
-    [Range(0f, 500f)]  public float startSpeed = 150f;
-    [Range(1f, 100f)]  public float startSize = 20f;
-    [Range(-600f, 600f)] public float gravityModifier = 100f;
-    [Range(1, 1000)]   public int maxParticles = 200;
+    [Range(0.1f, 20f)]     public float duration      = 5f;
+    [Range(0.1f, 10f)]     public float startLifetime = 2f;
+    [Range(0f, 800f)]      public float startSpeed    = 150f;
+    [Range(1f, 100f)]      public float startSize     = 20f;
+    [Range(-1200f, 1200f)] public float gravityModifier = 400f;
+    [Range(1, 2000)]       public int   maxParticles  = 300;
 
     // ─────────────────────────────────────────────
     // EMISSION
     // ─────────────────────────────────────────────
     [Header("Emission")]
-    public bool emission = true;
-    [Range(1f, 200f)]  public float rateOverTime = 20f;
+    public bool  emission    = true;
+    [Range(0f, 300f)] public float rateOverTime = 20f;
+
+    // ─────────────────────────────────────────────
+    // BURST MODULE
+    // ─────────────────────────────────────────────
+    [Header("Burst")]
+    [Tooltip("Automatically fire a burst when Play() is called")]
+    public bool burstOnPlay = false;
+
+    [Range(1, 500)]
+    [Tooltip("Number of particles per burst")]
+    public int burstCount = 80;
+
+    [Range(0f, 200f)]
+    [Tooltip("Random radius around the emitter where burst particles spawn (pixels)")]
+    public float burstSpawnRadius = 0f;
+
+    [Range(100f, 1200f)]
+    [Tooltip("Outward speed of burst particles — gravity will arc them back down")]
+    public float burstSpeed = 500f;
+
+    [Range(0f, 1f)]
+    [Tooltip("0 = full 360° sphere  |  1 = upper hemisphere only (fountain style)")]
+    public float burstUpwardBias = 0.3f;
+
+    [Tooltip("Repeat burst every X seconds automatically (0 = disabled)")]
+    public float burstRepeatInterval = 0f;
 
     // ─────────────────────────────────────────────
     // SHAPE
     // ─────────────────────────────────────────────
-    [Header("Shape")]
+    [Header("Shape (Continuous Emission)")]
     public EmissionShape shape = EmissionShape.Cone;
-    [Range(1f, 180f)]  public float angle = 30f;   // Cone half-angle OR Circle radius
-    [Range(0f, 300f)]  public float radius = 0f;   // Spawn offset radius (Box/Circle size)
+    [Range(1f, 180f)] public float angle  = 30f;
+    [Range(0f, 300f)] public float radius = 0f;
 
     public enum EmissionShape { Point, Cone, Circle, Box, Hemisphere }
 
@@ -44,126 +74,224 @@ public class UIParticleSystem : MonoBehaviour
     // COLOR OVER LIFETIME
     // ─────────────────────────────────────────────
     [Header("Color over Lifetime")]
-    public bool colorOverLifetime = true;
+    public bool     colorOverLifetime = true;
     public Gradient colorGradient;
 
     // ─────────────────────────────────────────────
     // SIZE OVER LIFETIME
     // ─────────────────────────────────────────────
     [Header("Size over Lifetime")]
-    public bool sizeOverLifetime = true;
-    public AnimationCurve sizeCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
+    public bool           sizeOverLifetime = true;
+    public AnimationCurve sizeCurve        = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
     // ─────────────────────────────────────────────
     // VELOCITY OVER LIFETIME
     // ─────────────────────────────────────────────
     [Header("Velocity over Lifetime")]
-    public bool velocityOverLifetime = false;
-    public Vector2 constantForce = Vector2.zero;
+    public bool    velocityOverLifetime = false;
+    public Vector2 constantForce        = Vector2.zero;
     [Range(0f, 5f)] public float turbulenceStrength = 0f;
-    [Range(0f, 1f)] public float dampingOverTime = 0f;
+    [Range(0f, 1f)] public float dampingOverTime    = 0f;
 
     // ─────────────────────────────────────────────
     // ROTATION OVER LIFETIME
     // ─────────────────────────────────────────────
     [Header("Rotation over Lifetime")]
-    public bool rotationOverLifetime = true;
-    [Range(-360f, 360f)] public float rotationSpeed = 90f;
-    public bool randomRotationDirection = true;
+    public bool  rotationOverLifetime     = true;
+    [Range(-720f, 720f)] public float rotationSpeed = 180f;
+    public bool  randomRotationDirection  = true;
 
     // ─────────────────────────────────────────────
     // RENDERER
     // ─────────────────────────────────────────────
     [Header("Renderer")]
-    public Sprite particleSprite;    // Leave null for default circle
-    public Material particleMaterial; // Leave null to use Image default
+    public Sprite   particleSprite;
+    public Material particleMaterial;
 
     // ─────────────────────────────────────────────
-    // INTERNAL
+    // EDITOR PREVIEW STATE  (not serialized)
     // ─────────────────────────────────────────────
-    private RectTransform _rectTransform;
-    private Canvas _rootCanvas;
+    [System.NonSerialized] public bool  PreviewPlaying = false;
+    [System.NonSerialized] public bool  PreviewPaused  = false;
+    [System.NonSerialized] public float PreviewTime    = 0f;
 
-    private readonly List<UIParticle> _activeParticles = new List<UIParticle>();
-    private readonly Queue<UIParticle> _pool = new Queue<UIParticle>();
+    // ─────────────────────────────────────────────
+    // INTERNALS
+    // ─────────────────────────────────────────────
+    private readonly List<UIParticle>  _active = new List<UIParticle>();
+    private readonly Queue<UIParticle> _pool   = new Queue<UIParticle>();
 
-    private float _emitAccum = 0f;
-    private float _elapsed = 0f;
-    private bool _playing = false;
+    private float  _emitAccum  = 0f;
+    private float  _elapsed    = 0f;
+    private float  _burstTimer = 0f;
+    private bool   _playing    = false;
+    private double _lastEditorTime = 0;
+    private Sprite _defaultSprite;
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     // LIFECYCLE
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     private void Awake()
     {
-        _rectTransform = GetComponent<RectTransform>();
-        _rootCanvas = GetComponentInParent<Canvas>();
+        EnsureDefaultGradient();
 
-        // Default gradient if none assigned
-        if (colorGradient == null || colorGradient.colorKeys.Length == 0)
-        {
-            colorGradient = new Gradient();
-            colorGradient.SetKeys(
-                new GradientColorKey[] {
-                    new GradientColorKey(Color.white, 0f),
-                    new GradientColorKey(Color.white, 1f)
-                },
-                new GradientAlphaKey[] {
-                    new GradientAlphaKey(1f, 0f),
-                    new GradientAlphaKey(0f, 1f)
-                }
-            );
-        }
-
+#if UNITY_EDITOR
+        // Don't auto-play in edit mode — the Editor controls it
+        if (!Application.isPlaying) return;
+#endif
         if (playOnAwake) Play();
     }
 
+    private void OnEnable()
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            UnityEditor.EditorApplication.update += EditorUpdate;
+            return;
+        }
+#endif
+    }
+
+    private void OnDisable()
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            UnityEditor.EditorApplication.update -= EditorUpdate;
+            EditorStopAndClear();
+            return;
+        }
+#endif
+        Stop();
+    }
+
+    // Called every frame in Play Mode
     private void Update()
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying) return; // Edit mode handled by EditorUpdate
+#endif
+        Tick(Time.deltaTime);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // EDITOR UPDATE  — drives simulation in Edit Mode via EditorApplication.update
+    // ═════════════════════════════════════════════════════════════════════════
+#if UNITY_EDITOR
+    private void EditorUpdate()
+    {
+        if (this == null || !gameObject) { UnityEditor.EditorApplication.update -= EditorUpdate; return; }
+        if (!PreviewPlaying || PreviewPaused) { _lastEditorTime = UnityEditor.EditorApplication.timeSinceStartup; return; }
+
+        double now = UnityEditor.EditorApplication.timeSinceStartup;
+        float  dt  = Mathf.Min((float)(now - _lastEditorTime), 0.05f);
+        _lastEditorTime = now;
+
+        Tick(dt);
+
+        // Force Scene view and Inspector to repaint so you can see the particles move
+        UnityEditor.SceneView.RepaintAll();
+        UnityEditor.EditorUtility.SetDirty(this);
+    }
+
+    public void EditorPlay()
+    {
+        EnsureDefaultGradient();
+        PreviewPlaying = true;
+        PreviewPaused  = false;
+        _playing       = true;
+        _elapsed       = 0f;
+        _emitAccum     = 0f;
+        _burstTimer    = 0f;
+        _lastEditorTime = UnityEditor.EditorApplication.timeSinceStartup;
+        if (burstOnPlay) EmitBurst();
+    }
+
+    public void EditorPause()
+    {
+        PreviewPaused = !PreviewPaused;
+    }
+
+    public void EditorStop()
+    {
+        PreviewPlaying = false;
+        PreviewPaused  = false;
+        _playing       = false;
+        EditorStopAndClear();
+    }
+
+    private void EditorStopAndClear()
+    {
+        for (int i = _active.Count - 1; i >= 0; i--)
+            ReturnToPool(_active[i]);
+        _active.Clear();
+        UnityEditor.SceneView.RepaintAll();
+    }
+#endif
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // CORE TICK  — shared between Play Mode and Edit Mode preview
+    // ═════════════════════════════════════════════════════════════════════════
+    private void Tick(float dt)
     {
         if (!_playing) return;
 
-        _elapsed += Time.deltaTime;
+        _elapsed += dt;
+        PreviewTime = _elapsed;
 
-        // Emission
-        if (emission)
+        // Continuous emission
+        if (emission && rateOverTime > 0f)
         {
-            _emitAccum += rateOverTime * Time.deltaTime;
-            while (_emitAccum >= 1f && _activeParticles.Count < maxParticles)
+            _emitAccum += rateOverTime * dt;
+            while (_emitAccum >= 1f && _active.Count < maxParticles)
             {
-                SpawnParticle();
+                SpawnParticle(isBurst: false);
                 _emitAccum -= 1f;
             }
         }
 
-        // Update active particles
-        for (int i = _activeParticles.Count - 1; i >= 0; i--)
+        // Timed repeat burst
+        if (burstRepeatInterval > 0f)
         {
-            UIParticle p = _activeParticles[i];
-            p.age += Time.deltaTime;
+            _burstTimer += dt;
+            if (_burstTimer >= burstRepeatInterval)
+            {
+                _burstTimer = 0f;
+                EmitBurst();
+            }
+        }
+
+        // Update active particles
+        for (int i = _active.Count - 1; i >= 0; i--)
+        {
+            UIParticle p = _active[i];
+            p.age += dt;
 
             if (p.age >= p.lifetime)
             {
                 ReturnToPool(p);
-                _activeParticles.RemoveAt(i);
+                _active.RemoveAt(i);
                 continue;
             }
 
-            UpdateParticle(p);
+            UpdateParticle(p, dt);
         }
 
-        // Loop / stop
-        if (!loop && _elapsed >= duration && _activeParticles.Count == 0)
+        if (!loop && _elapsed >= duration && _active.Count == 0)
             Stop();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // PUBLIC API — mirrors Unity ParticleSystem
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // PUBLIC API
+    // ═════════════════════════════════════════════════════════════════════════
     public void Play()
     {
-        _playing = true;
-        _elapsed = 0f;
-        _emitAccum = 0f;
+        _playing    = true;
+        _elapsed    = 0f;
+        _emitAccum  = 0f;
+        _burstTimer = 0f;
+        if (burstOnPlay) EmitBurst();
     }
 
     public void Stop()
@@ -173,236 +301,225 @@ public class UIParticleSystem : MonoBehaviour
 
     public void Clear()
     {
-        for (int i = _activeParticles.Count - 1; i >= 0; i--)
-            ReturnToPool(_activeParticles[i]);
-        _activeParticles.Clear();
+        for (int i = _active.Count - 1; i >= 0; i--)
+            ReturnToPool(_active[i]);
+        _active.Clear();
     }
 
-    /// <summary>Emit a one-shot burst of particles (like Unity Burst emission).</summary>
-    public void Emit(int count)
+    /// <summary>
+    /// Fire a burst of particles that explode outward in all directions.
+    /// Gravity pulls them back down in natural parabolic arcs.
+    /// </summary>
+    public void EmitBurst(int count = -1)
     {
-        for (int i = 0; i < count; i++)
+        int n = count < 0 ? burstCount : count;
+        for (int i = 0; i < n; i++)
         {
-            if (_activeParticles.Count >= maxParticles) break;
-            SpawnParticle();
+            if (_active.Count >= maxParticles) break;
+            SpawnParticle(isBurst: true);
         }
     }
 
-    public bool IsPlaying => _playing;
-    public int ParticleCount => _activeParticles.Count;
+    public void Emit(int count) => EmitBurst(count);
 
-    // ─────────────────────────────────────────────────────────────────────────
+    public bool IsPlaying     => _playing;
+    public int  ParticleCount => _active.Count;
+
+    // ═════════════════════════════════════════════════════════════════════════
     // SPAWN
-    // ─────────────────────────────────────────────────────────────────────────
-    private void SpawnParticle()
+    // ═════════════════════════════════════════════════════════════════════════
+    private void SpawnParticle(bool isBurst)
     {
         UIParticle p = GetFromPool();
 
-        // Position & velocity from shape
-        Vector2 localPos;
-        Vector2 velocity;
-        GetShapeEmission(out localPos, out velocity);
+        Vector2 spawnPos, velocity;
 
-        p.rectTransform.anchoredPosition = localPos;
-        p.velocity = velocity;
+        if (isBurst) GetBurstEmission(out spawnPos, out velocity);
+        else         GetShapeEmission(out spawnPos, out velocity);
 
-        // Lifetime & base size
-        p.lifetime = startLifetime * Random.Range(0.75f, 1.25f);
-        p.age = 0f;
-        p.baseSize = startSize * Random.Range(0.7f, 1.3f);
+        p.rectTransform.anchoredPosition = spawnPos;
+        p.velocity  = velocity;
+        p.lifetime  = startLifetime * Random.Range(0.7f, 1.4f);
+        p.age       = 0f;
+        p.baseSize  = startSize * Random.Range(0.6f, 1.4f);
+        p.rotDir    = (randomRotationDirection && Random.value > 0.5f) ? -1f : 1f;
+        p.isBurst   = isBurst;
 
-        // Rotation
-        p.rotDir = (randomRotationDirection && Random.value > 0.5f) ? -1f : 1f;
         p.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(0f, 360f));
-
+        p.rectTransform.sizeDelta        = new Vector2(p.baseSize, p.baseSize);
         p.gameObject.SetActive(true);
-        _activeParticles.Add(p);
+        _active.Add(p);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     // UPDATE PARTICLE
-    // ─────────────────────────────────────────────────────────────────────────
-    private void UpdateParticle(UIParticle p)
+    // ═════════════════════════════════════════════════════════════════════════
+    private void UpdateParticle(UIParticle p, float dt)
     {
         float t = p.age / p.lifetime;
-        float dt = Time.deltaTime;
 
-        // Gravity
         p.velocity.y -= gravityModifier * dt;
 
-        // Velocity over lifetime
         if (velocityOverLifetime)
         {
             p.velocity += constantForce * dt;
 
             if (turbulenceStrength > 0f)
             {
-                float noiseX = (Mathf.PerlinNoise(p.age * 1.3f, p.rectTransform.anchoredPosition.y * 0.01f) - 0.5f) * 2f;
-                float noiseY = (Mathf.PerlinNoise(p.rectTransform.anchoredPosition.x * 0.01f, p.age * 1.7f) - 0.5f) * 2f;
-                p.velocity += new Vector2(noiseX, noiseY) * turbulenceStrength * 200f * dt;
+                float nx = (Mathf.PerlinNoise(p.age * 1.3f, p.rectTransform.anchoredPosition.y * 0.01f) - 0.5f) * 2f;
+                float ny = (Mathf.PerlinNoise(p.rectTransform.anchoredPosition.x * 0.01f, p.age * 1.7f) - 0.5f) * 2f;
+                p.velocity += new Vector2(nx, ny) * turbulenceStrength * 200f * dt;
             }
 
-            float damp = Mathf.Pow(1f - dampingOverTime, dt * 60f);
-            p.velocity *= damp;
+            p.velocity *= Mathf.Pow(1f - dampingOverTime, dt * 60f);
         }
 
-        // Move
         p.rectTransform.anchoredPosition += p.velocity * dt;
 
-        // Rotation
         if (rotationOverLifetime)
         {
-            float angle = p.rectTransform.localEulerAngles.z;
-            angle += rotationSpeed * p.rotDir * dt;
-            p.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);
+            float a = p.rectTransform.localEulerAngles.z + rotationSpeed * p.rotDir * dt;
+            p.rectTransform.localEulerAngles = new Vector3(0f, 0f, a);
         }
 
-        // Size
-        float size = p.baseSize;
         if (sizeOverLifetime)
-            size *= sizeCurve.Evaluate(t);
-        p.rectTransform.sizeDelta = new Vector2(size, size);
+        {
+            float s = p.baseSize * sizeCurve.Evaluate(t);
+            p.rectTransform.sizeDelta = new Vector2(s, s);
+        }
 
-        // Color / Alpha
         if (colorOverLifetime)
             p.image.color = colorGradient.Evaluate(t);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // BURST EMISSION
+    // ═════════════════════════════════════════════════════════════════════════
+    private void GetBurstEmission(out Vector2 spawnPos, out Vector2 velocity)
+    {
+        float spawnAngle = Random.Range(0f, Mathf.PI * 2f);
+        float spawnR     = Random.Range(0f, burstSpawnRadius);
+        spawnPos = new Vector2(Mathf.Cos(spawnAngle) * spawnR, Mathf.Sin(spawnAngle) * spawnR);
+
+        float dirAngle;
+        if (burstUpwardBias <= 0f)
+        {
+            dirAngle = Random.Range(0f, Mathf.PI * 2f);
+        }
+        else
+        {
+            float fullCircle = Random.Range(0f, Mathf.PI * 2f);
+            float upperHemi  = Random.Range(0f, Mathf.PI);
+            dirAngle = Mathf.Lerp(fullCircle, upperHemi, burstUpwardBias);
+        }
+
+        float spd = burstSpeed * Random.Range(0.4f, 1.3f);
+        velocity  = new Vector2(Mathf.Cos(dirAngle), Mathf.Sin(dirAngle)) * spd;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
     // SHAPE EMISSION
-    // ─────────────────────────────────────────────────────────────────────────
-    private void GetShapeEmission(out Vector2 localPos, out Vector2 velocity)
+    // ═════════════════════════════════════════════════════════════════════════
+    private void GetShapeEmission(out Vector2 spawnPos, out Vector2 velocity)
     {
         float spd = startSpeed * Random.Range(0.8f, 1.2f);
 
         switch (shape)
         {
             case EmissionShape.Point:
-            {
-                localPos = Vector2.zero;
-                float a = Random.Range(0f, Mathf.PI * 2f);
-                velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * spd;
-                break;
-            }
+                spawnPos = Vector2.zero;
+                velocity = new Vector2(Mathf.Cos(Random.Range(0f, Mathf.PI * 2f)),
+                                       Mathf.Sin(Random.Range(0f, Mathf.PI * 2f))) * spd;
+                return;
 
             case EmissionShape.Cone:
-            {
-                float halfRad = angle * Mathf.Deg2Rad * 0.5f;
                 float a = (90f + Random.Range(-angle * 0.5f, angle * 0.5f)) * Mathf.Deg2Rad;
-                localPos = new Vector2(Random.Range(-radius, radius), 0f);
+                spawnPos = new Vector2(Random.Range(-radius, radius), 0f);
                 velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * spd;
-                break;
-            }
+                return;
 
             case EmissionShape.Circle:
-            {
-                float a = Random.Range(0f, Mathf.PI * 2f);
-                float r = radius > 0f ? radius : 1f;
-                localPos = new Vector2(Mathf.Cos(a) * r, Mathf.Sin(a) * r);
-                float va = Random.Range(0f, Mathf.PI * 2f);
-                velocity = new Vector2(Mathf.Cos(va), Mathf.Sin(va)) * spd;
-                break;
-            }
+                float ca  = Random.Range(0f, Mathf.PI * 2f);
+                float cr  = Mathf.Max(radius, 1f);
+                spawnPos  = new Vector2(Mathf.Cos(ca) * cr, Mathf.Sin(ca) * cr);
+                float va  = Random.Range(0f, Mathf.PI * 2f);
+                velocity  = new Vector2(Mathf.Cos(va), Mathf.Sin(va)) * spd;
+                return;
 
             case EmissionShape.Box:
-            {
-                float hw = Mathf.Max(radius, 10f);
-                localPos = new Vector2(Random.Range(-hw, hw), Random.Range(-hw * 0.4f, hw * 0.4f));
-                float a = (90f + Random.Range(-15f, 15f)) * Mathf.Deg2Rad;
-                velocity = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * spd;
-                break;
-            }
+                float hw  = Mathf.Max(radius, 10f);
+                spawnPos  = new Vector2(Random.Range(-hw, hw), Random.Range(-hw * 0.4f, hw * 0.4f));
+                float ba  = (90f + Random.Range(-15f, 15f)) * Mathf.Deg2Rad;
+                velocity  = new Vector2(Mathf.Cos(ba), Mathf.Sin(ba)) * spd;
+                return;
 
             case EmissionShape.Hemisphere:
-            {
-                float a = Random.Range(0f, Mathf.PI);
-                float r = Mathf.Max(radius, 10f);
-                localPos = new Vector2(Mathf.Cos(a) * r, 0f);
-                velocity = new Vector2(Mathf.Cos(a) * 0.5f, Mathf.Sin(a)) * spd;
-                break;
-            }
-
-            default:
-                localPos = Vector2.zero;
-                velocity = Vector2.up * spd;
-                break;
+                float ha  = Random.Range(0f, Mathf.PI);
+                float hr  = Mathf.Max(radius, 10f);
+                spawnPos  = new Vector2(Mathf.Cos(ha) * hr, 0f);
+                velocity  = new Vector2(Mathf.Cos(ha) * 0.5f, Mathf.Sin(ha)) * spd;
+                return;
         }
+
+        spawnPos = Vector2.zero;
+        velocity = Vector2.up * spd;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     // OBJECT POOL
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     private UIParticle GetFromPool()
     {
-        if (_pool.Count > 0)
-        {
-            UIParticle p = _pool.Dequeue();
-            p.gameObject.SetActive(true);
-            return p;
-        }
+        if (_pool.Count > 0) { var p = _pool.Dequeue(); p.gameObject.SetActive(true); return p; }
         return CreateParticle();
     }
 
     private void ReturnToPool(UIParticle p)
     {
         p.gameObject.SetActive(false);
+        _pool.Enqueue(p);
     }
 
     private UIParticle CreateParticle()
     {
-        // Create a child GameObject with Image + RectTransform
-        GameObject go = new GameObject("UIParticle", typeof(RectTransform), typeof(Image));
+        var go = new GameObject("UIParticle", typeof(RectTransform), typeof(Image));
         go.transform.SetParent(transform, false);
 
-        RectTransform rt = go.GetComponent<RectTransform>();
+        var rt       = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = new Vector2(startSize, startSize);
 
-        Image img = go.GetComponent<Image>();
-        if (particleSprite != null)
-            img.sprite = particleSprite;
-        else
-            img.sprite = GetDefaultCircleSprite();
+        var img    = go.GetComponent<Image>();
+        img.sprite = particleSprite != null ? particleSprite : GetDefaultCircleSprite();
+        if (particleMaterial != null) img.material = particleMaterial;
+        img.color  = Color.white;
 
-        if (particleMaterial != null)
-            img.material = particleMaterial;
-
-        // Use Additive-like look with alpha
-        img.color = Color.white;
-
-        UIParticle particle = new UIParticle
-        {
-            gameObject = go,
-            rectTransform = rt,
-            image = img
-        };
-
+        var p = new UIParticle { gameObject = go, rectTransform = rt, image = img };
         go.SetActive(false);
-        return particle;
+
+        // Hide from hierarchy clutter in Edit Mode
+#if UNITY_EDITOR
+        go.hideFlags = HideFlags.DontSave | HideFlags.HideInHierarchy;
+#endif
+        return p;
     }
 
-    /// <summary>
-    /// Generates a soft circle sprite at runtime — no texture asset needed.
-    /// For a glowing look, assign a soft-circle sprite from your project instead.
-    /// </summary>
-    private Sprite _defaultSprite;
     private Sprite GetDefaultCircleSprite()
     {
         if (_defaultSprite != null) return _defaultSprite;
 
-        int size = 64;
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        const int size = 64;
+        var tex        = new Texture2D(size, size, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Bilinear;
-        Color[] pixels = new Color[size * size];
-        Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
-        float r = size * 0.5f;
+        var pixels     = new Color[size * size];
+        var center     = Vector2.one * (size * 0.5f);
 
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
         {
-            float dist = Vector2.Distance(new Vector2(x, y), center);
-            float alpha = Mathf.Clamp01(1f - (dist / r));
-            alpha = alpha * alpha; // Soft falloff
+            float dist  = Vector2.Distance(new Vector2(x, y), center);
+            float alpha = Mathf.Clamp01(1f - dist / (size * 0.5f));
+            alpha       = alpha * alpha;
             pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
         }
 
@@ -411,21 +528,38 @@ public class UIParticleSystem : MonoBehaviour
         _defaultSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
         return _defaultSprite;
     }
+
+    private void EnsureDefaultGradient()
+    {
+        if (colorGradient != null && colorGradient.colorKeys.Length > 0) return;
+        colorGradient = new Gradient();
+        colorGradient.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DATA CLASS — one per active particle
+// PARTICLE DATA
 // ─────────────────────────────────────────────────────────────────────────────
 [System.Serializable]
 public class UIParticle
 {
-    public GameObject gameObject;
+    public GameObject    gameObject;
     public RectTransform rectTransform;
-    public Image image;
+    public Image         image;
 
-    public float age;
-    public float lifetime;
-    public float baseSize;
+    public float   age;
+    public float   lifetime;
+    public float   baseSize;
     public Vector2 velocity;
-    public float rotDir;
+    public float   rotDir;
+    public bool    isBurst;
 }

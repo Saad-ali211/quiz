@@ -2,86 +2,204 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Demo: shows how to use UIParticleSystem in your game.
+/// Demonstrates how to use UIParticleSystem burst + gravity arcs.
 ///
-/// SETUP:
-///   1. Create Canvas (Render Mode: Screen Space - Overlay)
-///   2. Add empty GameObject inside Canvas → name it "ParticleEmitter"
-///   3. Add UIParticleSystem component to it
-///   4. Attach THIS script to any GameObject and assign the reference
-///   5. Press Play!
+/// QUICK SETUP:
+///   1. Canvas (Screen Space - Overlay)
+///      └── ParticleEmitter (empty GO)
+///              └── UIParticleSystem component
+///   2. Assign particleSystem reference below
+///   3. Wire buttons to the public methods
 /// </summary>
 public class UIParticleSystemDemo : MonoBehaviour
 {
-    [Header("Reference")]
+    [Header("References")]
     public UIParticleSystem particleSystem;
-
-    [Header("Demo Controls")]
-    public bool autoSwitchPresets = true;
-    [Range(2f, 8f)] public float switchInterval = 4f;
-
-    private int _presetIndex = 0;
-    private float _timer = 0f;
-
-    private readonly string[] _presetNames = { "Fire", "Stars", "Smoke", "Magic", "Rain" };
 
     private void Start()
     {
         if (particleSystem == null)
         {
-            Debug.LogError("UIParticleSystem reference not assigned!");
+            Debug.LogError("[UIParticleSystemDemo] Assign the UIParticleSystem reference!");
             return;
         }
 
-        ApplyPreset(_presetIndex);
-        particleSystem.Play();
-    }
-
-    private void Update()
-    {
-        if (!autoSwitchPresets) return;
-
-        _timer += Time.deltaTime;
-        if (_timer >= switchInterval)
-        {
-            _timer = 0f;
-            _presetIndex = (_presetIndex + 1) % _presetNames.Length;
-            ApplyPreset(_presetIndex);
-        }
+        // Default: confetti burst — feels great for level complete / coin collect
+        SetupConfettiBurst();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Call any of these from buttons / game events
+    // BURST EXAMPLES  — wire these to UI Buttons
     // ─────────────────────────────────────────────────────────────────────────
 
-    public void PlayFire()    { UIParticleSystemPresets.ApplyFire(particleSystem);     particleSystem.Play(); }
-    public void PlayStars()   { UIParticleSystemPresets.ApplyStars(particleSystem);    particleSystem.Play(); }
-    public void PlaySmoke()   { UIParticleSystemPresets.ApplySmoke(particleSystem);    particleSystem.Play(); }
-    public void PlayMagic()   { UIParticleSystemPresets.ApplyMagic(particleSystem);    particleSystem.Play(); }
-    public void PlayRain()    { UIParticleSystemPresets.ApplyRain(particleSystem);     particleSystem.Play(); }
-
-    /// <summary>Fire a confetti burst — great for level complete screens!</summary>
+    /// <summary>
+    /// Classic confetti explosion. Particles fly in all directions, gravity
+    /// pulls them down in natural arcs. Great for: level complete, win screen.
+    /// </summary>
     public void BurstConfetti()
     {
-        UIParticleSystemPresets.ApplyConfetti(particleSystem);
-        particleSystem.Emit(120); // One-shot burst of 120 particles
+        SetupConfettiBurst();
+        particleSystem.EmitBurst();         // fire 80 particles right now
     }
+
+    /// <summary>
+    /// Fountain: particles shoot mostly upward, gravity arcs them back down.
+    /// Great for: coin collect, reward, score popup.
+    /// </summary>
+    public void BurstFountain()
+    {
+        particleSystem.Clear();
+        particleSystem.startLifetime    = 1.6f;
+        particleSystem.gravityModifier  = 600f;   // strong gravity → fast arc
+        particleSystem.burstSpeed       = 700f;
+        particleSystem.burstCount       = 40;
+        particleSystem.burstUpwardBias  = 0.85f;  // mostly upward
+        particleSystem.burstSpawnRadius = 10f;
+        particleSystem.startSize        = 14f;
+        particleSystem.sizeOverLifetime = true;
+        particleSystem.rotationOverLifetime = true;
+        particleSystem.rotationSpeed    = 360f;
+
+        // Gold gradient
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(Color.white,              0f),
+                new GradientColorKey(new Color(1f, 0.9f, 0f), 0.3f),
+                new GradientColorKey(new Color(1f, 0.5f, 0f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 0.5f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        particleSystem.colorGradient = g;
+        particleSystem.EmitBurst();
+    }
+
+    /// <summary>
+    /// Small tap feedback burst. Low count, quick arc. Good for button presses.
+    /// </summary>
+    public void BurstTapFeedback()
+    {
+        particleSystem.Clear();
+        particleSystem.startLifetime    = 0.7f;
+        particleSystem.gravityModifier  = 800f;   // very fast arc = snappy feel
+        particleSystem.burstSpeed       = 350f;
+        particleSystem.burstCount       = 15;
+        particleSystem.burstUpwardBias  = 0.5f;
+        particleSystem.burstSpawnRadius = 5f;
+        particleSystem.startSize        = 10f;
+        particleSystem.sizeOverLifetime = true;
+        particleSystem.rotationOverLifetime = false;
+
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(new Color(0.4f, 0.8f, 1f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        particleSystem.colorGradient = g;
+        particleSystem.EmitBurst();
+    }
+
+    /// <summary>
+    /// Big explosion — full 360° with slow gravity so particles fly far.
+    /// Good for: boss defeat, big achievement.
+    /// </summary>
+    public void BurstExplosion()
+    {
+        particleSystem.Clear();
+        particleSystem.startLifetime    = 2.5f;
+        particleSystem.gravityModifier  = 250f;   // gentle gravity = wide spread
+        particleSystem.burstSpeed       = 900f;
+        particleSystem.burstCount       = 120;
+        particleSystem.burstUpwardBias  = 0f;     // full 360° sphere
+        particleSystem.burstSpawnRadius = 30f;
+        particleSystem.startSize        = 18f;
+        particleSystem.sizeOverLifetime = true;
+        particleSystem.rotationOverLifetime = true;
+        particleSystem.rotationSpeed    = 270f;
+
+        // Random vivid colors
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(Color.white,              0f),
+                new GradientColorKey(new Color(1f, 0.3f, 0.3f), 0.4f),
+                new GradientColorKey(new Color(1f, 0.8f, 0f), 1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(0.8f, 0.6f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        particleSystem.colorGradient = g;
+        particleSystem.EmitBurst();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONTINUOUS PRESETS
+    // ─────────────────────────────────────────────────────────────────────────
+    public void PlayFire()  { UIParticleSystemPresets.ApplyFire(particleSystem);  particleSystem.Play(); }
+    public void PlayStars() { UIParticleSystemPresets.ApplyStars(particleSystem); particleSystem.Play(); }
+    public void PlayMagic() { UIParticleSystemPresets.ApplyMagic(particleSystem); particleSystem.Play(); }
+    public void PlayRain()  { UIParticleSystemPresets.ApplyRain(particleSystem);  particleSystem.Play(); }
 
     public void StopParticles()  => particleSystem.Stop();
     public void ClearParticles() => particleSystem.Clear();
 
-    private void ApplyPreset(int index)
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+    private void SetupConfettiBurst()
     {
         particleSystem.Clear();
-        switch (index)
-        {
-            case 0: UIParticleSystemPresets.ApplyFire(particleSystem);  break;
-            case 1: UIParticleSystemPresets.ApplyStars(particleSystem); break;
-            case 2: UIParticleSystemPresets.ApplySmoke(particleSystem); break;
-            case 3: UIParticleSystemPresets.ApplyMagic(particleSystem); break;
-            case 4: UIParticleSystemPresets.ApplyRain(particleSystem);  break;
-        }
-        particleSystem.Play();
-        Debug.Log($"[UIParticleSystem] Switched to preset: {_presetNames[index]}");
+
+        // No continuous emission — pure burst only
+        particleSystem.emission         = false;
+        particleSystem.loop             = false;
+
+        // Burst settings
+        particleSystem.burstCount       = 80;
+        particleSystem.burstSpeed       = 600f;
+        particleSystem.burstUpwardBias  = 0.4f;  // slight upward lean
+        particleSystem.burstSpawnRadius = 20f;   // particles spawn in a small area
+
+        // Physics
+        particleSystem.startLifetime   = 2.2f;
+        particleSystem.gravityModifier = 450f;   // pulls particles into nice arcs
+
+        // Look
+        particleSystem.startSize        = 16f;
+        particleSystem.sizeOverLifetime = false; // keep size constant for confetti feel
+        particleSystem.rotationOverLifetime = true;
+        particleSystem.rotationSpeed    = 360f;
+        particleSystem.randomRotationDirection = true;
+
+        // Colorful gradient
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(1f, 0.3f, 0.3f), 0f),
+                new GradientColorKey(new Color(1f, 0.9f, 0f),   0.25f),
+                new GradientColorKey(new Color(0.3f, 1f, 0.3f), 0.5f),
+                new GradientColorKey(new Color(0.3f, 0.6f, 1f), 0.75f),
+                new GradientColorKey(new Color(1f, 0.3f, 1f),   1f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1f, 0f),
+                new GradientAlphaKey(1f, 0.6f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        particleSystem.colorGradient = g;
     }
 }
